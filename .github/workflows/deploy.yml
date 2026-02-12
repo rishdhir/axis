@@ -4,18 +4,15 @@ on:
   push:
     branches: [ main ]
 
-permissions:
-  contents: write
-
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     
     - name: Setup Node.js
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v4
       with:
         node-version: '20'
         cache: 'npm'
@@ -26,9 +23,11 @@ jobs:
     - name: Build
       run: npm run build
     
-    - name: Deploy
-      uses: JamesIves/github-pages-deploy-action@v4
+    - name: Upload Pages artifact
+      uses: actions/upload-pages-artifact@v2
       with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-        branch: gh-pages
-        folder: dist
+        path: 'dist'
+    
+    - name: Deploy to Pages
+      id: deployment
+      uses: actions/deploy-pages@v4
