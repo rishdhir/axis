@@ -80,8 +80,9 @@ export class ThreeSceneManager {
     const loader = new GLTFLoader();
     loader.setDRACOLoader(dracoLoader);
 
+    const basePath = import.meta.env.BASE_URL || '/';
     loader.load(
-      '/models/shoe.glb',
+      `${basePath}models/shoe.glb`,
       (gltf) => {
         this.model = gltf.scene;
         this.model.position.set(0, -0.09, -0.03);
