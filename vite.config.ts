@@ -5,21 +5,7 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   base: '/axis/',
   plugins: [react()],
-  optimizeDeps: {
-    exclude: [
-      'lucide-react',
-      '@mediapipe/face_mesh',
-      '@mediapipe/camera_utils',
-      '@mediapipe/drawing_utils'
-    ],
-  },
   build: {
-    rollupOptions: {
-      external: [
-        '@mediapipe/face_mesh',
-        '@mediapipe/camera_utils',
-        '@mediapipe/drawing_utils'
-      ]
-    }
+    chunkSizeWarningLimit: 1000,
   }
 });
