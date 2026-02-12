@@ -18,6 +18,11 @@ const ShoeControlPanel: React.FC<ShoeControlPanelProps> = ({
   initialScale,
   initialRotation
 }) => {
+  // Default values from original repo
+  const DEFAULT_POSITION = { x: 0, y: -0.09, z: -0.03 };
+  const DEFAULT_SCALE = 0.071;
+  const DEFAULT_ROTATION = { x: 0, y: -0.628, z: 0 };
+
   const [position, setPosition] = useState(initialPosition);
   const [scale, setScale] = useState(initialScale);
   const [rotation, setRotation] = useState(initialRotation);
@@ -44,6 +49,15 @@ const ShoeControlPanel: React.FC<ShoeControlPanelProps> = ({
     const newRotation = { ...rotation, [axis]: value };
     setRotation(newRotation);
     onRotationChange(newRotation.x, newRotation.y, newRotation.z);
+  };
+
+  const handleResetAll = () => {
+    setPosition(DEFAULT_POSITION);
+    setScale(DEFAULT_SCALE);
+    setRotation(DEFAULT_ROTATION);
+    onPositionChange(DEFAULT_POSITION.x, DEFAULT_POSITION.y, DEFAULT_POSITION.z);
+    onScaleChange(DEFAULT_SCALE);
+    onRotationChange(DEFAULT_ROTATION.x, DEFAULT_ROTATION.y, DEFAULT_ROTATION.z);
   };
 
   return (
@@ -110,16 +124,26 @@ const ShoeControlPanel: React.FC<ShoeControlPanelProps> = ({
             </div>
 
             <div className="pt-2 border-t border-gray-600">
-              <label className="text-xs block mb-1">Scale: {scale.toFixed(3)}</label>
+              <label className="text-xs block mb-1">Scale: {scale.toFixed(4)}</label>
               <input
                 type="range"
-                min="0.01"
-                max="0.3"
+                min="0.001"
+                max="0.5"
                 step="0.001"
                 value={scale}
                 onChange={(e) => handleScaleChange(parseFloat(e.target.value))}
                 className="w-full h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-white"
               />
+              <div className="flex justify-between text-[10px] text-gray-500 mt-1">
+                <span>0.001</span>
+                <button 
+                  onClick={() => handleScaleChange(0.071)}
+                  className="text-blue-400 hover:text-blue-300"
+                >
+                  Reset (0.071)
+                </button>
+                <span>0.5</span>
+              </div>
             </div>
 
             <div className="pt-2 border-t border-gray-600">
@@ -133,6 +157,15 @@ const ShoeControlPanel: React.FC<ShoeControlPanelProps> = ({
                 onChange={(e) => handleRotationChange('y', parseFloat(e.target.value))}
                 className="w-full h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-white"
               />
+            </div>
+
+            <div className="pt-3 border-t border-gray-600">
+              <button
+                onClick={handleResetAll}
+                className="w-full py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs rounded transition-colors"
+              >
+                Reset to Defaults
+              </button>
             </div>
           </div>
         </div>

@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
+import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
+import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
+import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
 import { HeadPose } from './headPose';
 import { OffAxisCamera } from './offAxisCamera';
 import { calibrationManager, CalibrationData } from './calibration';
@@ -49,12 +52,14 @@ export class ThreeSceneManager {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     options.container.appendChild(this.renderer.domElement);
 
+    this.setupLighting();
     this.loadShoeModel();
     this.createWireframeRoom();
     this.createDebugHelpers();
   }
 
-  private loadShoeModel(): void {
+  private setupLighting(): void {
+    // Original lighting from repo
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
     this.scene.add(ambientLight);
 
@@ -65,7 +70,9 @@ export class ThreeSceneManager {
     const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.5);
     directionalLight2.position.set(-1, -1, 0.5);
     this.scene.add(directionalLight2);
+  }
 
+  private loadShoeModel(): void {
     const dracoLoader = new DRACOLoader();
     dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
     dracoLoader.setDecoderConfig({ type: 'js' });
@@ -87,6 +94,135 @@ export class ThreeSceneManager {
         console.error('Error loading shoe model:', error);
       }
     );
+  }
+
+  loadModelFromFile(file: File): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const extension = '.' + file.name.split('.').pop()?.toLowerCase();
+      const url = URL.createObjectURL(file);
+
+      // Remove existing model
+      if (this.model) {
+        this.scene.remove(this.model);
+        this.model.traverse((child) => {
+          if (child instanceof THREE.Mesh) {
+            child.geometry.dispose();
+            if (child.material instanceof THREE.Material) {
+              child.material.dispose();
+            } else if (Array.isArray(child.material)) {
+              child.material.forEach(m => m.dispose());
+            }
+          }
+        });
+        this.model = null;
+      }
+
+      const onLoad = (object: THREE.Object3D) => {
+        this.model = object;
+        
+        // Get model bounding box for centering
+        const box = new THREE.Box3().setFromObject(object);
+        const center = box.getCenter(new THREE.Vector3());
+        
+        // Use the same scale as the shoe model (0.071)
+        // User can adjust with the control panel slider
+        const scale = 0.071;
+        
+        object.scale.set(scale, scale, scale);
+        
+        // Position: same as shoe model
+        object.position.set(
+          -center.x * scale,
+          -center.y * scale - 0.09,
+          -0.03
+        );
+        
+        console.log('Model loaded - use the slider (top-left) to adjust scale');
+        
+        this.scene.add(object);
+        URL.revokeObjectURL(url);
+        resolve();
+      };
+
+      const onError = (error: unknown) => {
+        console.error('Error loading model:', error);
+        URL.revokeObjectURL(url);
+        reject(error);
+      };
+
+      switch (extension) {
+        case '.glb':
+        case '.gltf': {
+          const dracoLoader = new DRACOLoader();
+          dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
+          dracoLoader.setDecoderConfig({ type: 'js' });
+          const loader = new GLTFLoader();
+          loader.setDRACOLoader(dracoLoader);
+          loader.load(url, (gltf) => {
+            const scene = gltf.scene;
+            
+            // Process all meshes to ensure proper material/texture handling
+            scene.traverse((child) => {
+              if (child instanceof THREE.Mesh) {
+                // Handle single material or array of materials
+                const materials = Array.isArray(child.material) ? child.material : [child.material];
+                
+                materials.forEach((mat) => {
+                  if (mat instanceof THREE.MeshStandardMaterial || 
+                      mat instanceof THREE.MeshPhysicalMaterial) {
+                    // Ensure textures have correct color space
+                    if (mat.map) {
+                      mat.map.colorSpace = THREE.SRGBColorSpace;
+                      mat.map.needsUpdate = true;
+                    }
+                    if (mat.emissiveMap) {
+                      mat.emissiveMap.colorSpace = THREE.SRGBColorSpace;
+                      mat.emissiveMap.needsUpdate = true;
+                    }
+                    // Make sure material updates
+                    mat.needsUpdate = true;
+                  }
+                });
+                
+                // Ensure geometry has computed normals for proper lighting
+                if (child.geometry) {
+                  child.geometry.computeVertexNormals();
+                }
+              }
+            });
+            
+            onLoad(scene);
+          }, undefined, onError);
+          break;
+        }
+        case '.obj': {
+          const loader = new OBJLoader();
+          loader.load(url, onLoad, undefined, onError);
+          break;
+        }
+        case '.fbx': {
+          const loader = new FBXLoader();
+          loader.load(url, onLoad, undefined, onError);
+          break;
+        }
+        case '.stl': {
+          const loader = new STLLoader();
+          loader.load(url, (geometry) => {
+            const material = new THREE.MeshStandardMaterial({ 
+              color: 0x808080,
+              metalness: 0.3,
+              roughness: 0.7
+            });
+            const mesh = new THREE.Mesh(geometry, material);
+            onLoad(mesh);
+          }, undefined, onError);
+          break;
+        }
+        default:
+          URL.revokeObjectURL(url);
+          reject(new Error(`Unsupported format: ${extension}`));
+      }
+    });
   }
 
   private createWireframeRoom(): void {

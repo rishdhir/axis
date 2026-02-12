@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Maximize, Minimize, Settings, Bug } from 'lucide-react';
+import { Maximize, Minimize, Settings, Bug, Upload, Video, VideoOff } from 'lucide-react';
 import FaceMeshView from './components/FaceMeshView';
 import ThreeView, { ThreeViewHandle } from './components/ThreeView';
 import CalibrationWizard from './components/CalibrationWizard';
 import ShoeControlPanel from './components/ShoeControlPanel';
+import ModelUpload from './components/ModelUpload';
 import { HeadPose, HeadPoseTracker } from './utils/headPose';
 import { calibrationManager, CalibrationData } from './utils/calibration';
 
@@ -15,6 +16,8 @@ function App() {
   const [showCalibration, setShowCalibration] = useState(false);
   const [calibration, setCalibration] = useState<CalibrationData>(calibrationManager.getCalibration());
   const [debugMode, setDebugMode] = useState(false);
+  const [showModelUpload, setShowModelUpload] = useState(false);
+  const [showCamera, setShowCamera] = useState(true);
   const [shoePosition, setShoePosition] = useState({ x: 0, y: -0.09, z: -0.03 });
   const [shoeScale, setShoeScale] = useState(0.071);
   const [shoeRotation, setShoeRotation] = useState({ x: 0, y: -0.628, z: 0 });
@@ -124,6 +127,23 @@ function App() {
     }
   };
 
+  const handleModelUpload = async (file: File): Promise<void> => {
+    if (threeViewRef.current) {
+      await threeViewRef.current.loadModelFromFile(file);
+      // Update controls with new model's position/scale/rotation
+      setTimeout(() => {
+        if (threeViewRef.current) {
+          const pos = threeViewRef.current.getModelPosition();
+          const scale = threeViewRef.current.getModelScale();
+          const rot = threeViewRef.current.getModelRotation();
+          setShoePosition(pos);
+          setShoeScale(scale);
+          setShoeRotation(rot);
+        }
+      }, 100);
+    }
+  };
+
   const handleShoePositionChange = (x: number, y: number, z: number) => {
     setShoePosition({ x, y, z });
     if (threeViewRef.current) {
@@ -186,7 +206,7 @@ function App() {
           initialRotation={shoeRotation}
         />
 
-        <div className="absolute bottom-4 right-4 z-10 rounded-lg overflow-hidden shadow-2xl border-2 border-white">
+        <div className={`absolute bottom-4 right-4 z-10 rounded-lg overflow-hidden shadow-2xl border-2 border-white transition-opacity ${showCamera ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
           <div className="w-64 h-48">
             <FaceMeshView onHeadPoseUpdate={handleHeadPoseUpdate} />
           </div>
@@ -219,6 +239,24 @@ function App() {
           >
             <Bug size={14} />
           </button>
+
+          <button
+            onClick={() => setShowModelUpload(true)}
+            className="p-1.5 bg-black bg-opacity-50 hover:bg-opacity-70 text-white rounded transition-colors backdrop-blur-sm"
+            aria-label="Upload 3D model"
+            title="Upload 3D model"
+          >
+            <Upload size={14} />
+          </button>
+
+          <button
+            onClick={() => setShowCamera(!showCamera)}
+            className={`p-1.5 ${showCamera ? 'bg-black bg-opacity-50' : 'bg-red-600'} hover:bg-opacity-70 text-white rounded transition-colors backdrop-blur-sm`}
+            aria-label={showCamera ? 'Hide camera' : 'Show camera'}
+            title={showCamera ? 'Hide camera' : 'Show camera'}
+          >
+            {showCamera ? <Video size={14} /> : <VideoOff size={14} />}
+          </button>
         </div>
       </main>
 
@@ -229,6 +267,12 @@ function App() {
           onClose={() => setShowCalibration(false)}
         />
       )}
+
+      <ModelUpload
+        isOpen={showModelUpload}
+        onClose={() => setShowModelUpload(false)}
+        onModelLoad={handleModelUpload}
+      />
     </div>
   );
 }
