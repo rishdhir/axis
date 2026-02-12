@@ -4,24 +4,14 @@ on:
   push:
     branches: [ main ]
 
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: "pages"
-  cancel-in-progress: false
-
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     
     steps:
     - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
     
     - name: Setup Node.js
       uses: actions/setup-node@v4
@@ -35,11 +25,10 @@ jobs:
     - name: Build
       run: npm run build
     
-    - name: Upload Pages artifact
-      uses: actions/upload-pages-artifact@v3
-      with:
-        path: 'dist'
-    
-    - name: Deploy to Pages
-      id: deployment
-      uses: actions/deploy-pages@v4
+    - name: Deploy to gh-pages
+      run: |
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
+        git add dist -f
+        git commit -m "Deploy dist folder" || true
+        git subtree push --prefix dist origin gh-pages
