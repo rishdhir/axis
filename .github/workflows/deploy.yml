@@ -10,8 +10,6 @@ jobs:
     
     steps:
     - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
     
     - name: Setup Node.js
       uses: actions/setup-node@v4
@@ -27,8 +25,10 @@ jobs:
     
     - name: Deploy to gh-pages
       run: |
+        cd dist
+        git init
         git config user.name "GitHub Actions"
         git config user.email "actions@github.com"
-        git add dist -f
-        git commit -m "Deploy dist folder" || true
-        git subtree push --prefix dist origin gh-pages
+        git add .
+        git commit -m "Deploy"
+        git push -f https://${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:gh-pages
